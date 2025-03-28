@@ -17,7 +17,6 @@ type (
 	Ticket struct {
 		ID       int64
 		Entries  []Content
-		Priority int
 		Status   int
 		Tags     []string
 		Metrics  map[string]float64
@@ -25,14 +24,15 @@ type (
 		Assignee User
 		Items    []Ticket
 	}
-	/* TODO: HISTORY暂缓设计
 	History struct {
-		ID int64
-		Content Content
-		Author User
-		Created time.Time
+		ID      int64
+		Actor   User
+		Action  string //CRUD...
+		Subject string
+		OldVal  any
+		NewVal  any
+		Time    time.Time
 	}
-	*/
 )
 
 /*
@@ -67,9 +67,11 @@ type (
 - 所有用户在分诊区具有他本人所拥有的最大权限，但至少为developer。
 - 所有用户默认拥有所有顶级票的guest权限（即：只要本系统定义的用户，无需任何权限分配，
   至少拥有guest权限）
-- priority的值默认为0，数字越大表示优先级越高
 - status的值默认为0，表示“新建”，-1表示“关闭”，其他负值表示“删除”，其他正值可以
   自由定义。负值是“终结值”(即不可再设置为其他非负值了，票也不能再编辑了)。
-- metrics是预留用作各种属性的，比如估计工作时长（但我还比较犹豫，是否要规定为float，
-  以及它还可能有什么用处）
+- metrics是预留用作各种属性的，比如：
+  - priority：票的优先级
+  - estimate：预估工作时长
+  - progress：当前百分比进度
+  这些属性应该都是浮点数，且应该是定义后才使用。
 */
