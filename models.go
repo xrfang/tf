@@ -10,19 +10,9 @@ type (
 		Caption string
 		Type    string
 		Data    []byte
-		Creator User
+		Creator int64 //user-id
 		Created time.Time
 		Updated time.Time
-	}
-	Ticket struct {
-		ID       int64
-		Entries  []Content
-		Status   int
-		Tags     []string
-		Metrics  map[string]float64
-		Due      time.Time
-		Assignee User
-		Items    []Ticket
 	}
 	History struct {
 		ID      int64
