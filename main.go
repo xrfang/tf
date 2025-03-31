@@ -7,7 +7,7 @@ import (
 	"go.xrfang.cn/act"
 )
 
-func init() {
+func main() {
 	db, err := bbolt.Open("tickets.db", 0600, nil)
 	act.Assert(err)
 	if err != nil {

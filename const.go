@@ -1,5 +1,7 @@
 package main
 
-const (
-	bktTickets = "tickets"
+var (
+	bktTickets = []byte("tickets")
+	bktMetrics = []byte("metrics")
+	bktContent = []byte("content")
 )

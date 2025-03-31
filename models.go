@@ -6,14 +6,6 @@ type (
 	User struct {
 		ID int64
 	}
-	Content struct {
-		Caption string
-		Type    string
-		Data    []byte
-		Creator int64 //user-id
-		Created time.Time
-		Updated time.Time
-	}
 	History struct {
 		ID      int64
 		Actor   User
