@@ -23,7 +23,9 @@ type (
 )
 
 func encode[T value](vs ...T) []byte {
-	act.Assert(len(vs) > 0, "encode: no value")
+	if len(vs) == 0 {
+		return nil
+	}
 	var bb bytes.Buffer
 	switch ts := any(vs).(type) {
 	case []string:
@@ -149,5 +151,9 @@ func decode[T value](buf []byte) (vs []T, err error) {
 }
 
 func bput[T value](b *bbolt.Bucket, key string, val ...T) {
-	act.Assert(b.Put([]byte(key), encode(val...)))
+	if data := encode(val...); len(data) > 0 {
+		act.Assert(b.Put([]byte(key), data))
+	} else {
+		act.Assert(b.Delete([]byte(key)))
+	}
 }
