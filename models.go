@@ -4,10 +4,10 @@ import "time"
 
 type (
 	User struct {
-		ID int64
+		ID uint64
 	}
 	History struct {
-		ID      int64
+		ID      uint64
 		Actor   User
 		Action  string //CRUD...
 		Subject string

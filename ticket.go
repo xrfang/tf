@@ -1,7 +1,7 @@
 package main
 
 import (
-	"time"
+	"os"
 
 	"go.etcd.io/bbolt"
 	"go.xrfang.cn/act"
@@ -10,12 +10,12 @@ import (
 type (
 	Ticket struct {
 		id       uint64
-		Entries  []Content
+		Entries  []*Content
 		Status   int8
 		Tags     []string
 		Metrics  map[string]float64
-		Due      time.Time
-		Assignee int64
+		Due      int64 //time.UnixNano
+		Assignee uint64
 		Items    []uint64
 	}
 )
@@ -34,15 +34,18 @@ func (t *Ticket) saveContents(tb *bbolt.Bucket) {
 	var cb *bbolt.Bucket
 	act.Assure(tb.CreateBucket(bktContent)).Scan(&cb)
 	for i, e := range t.Entries {
-		act.Assert(cb.Put(encode(int16(i)), e.encode()))
+		act.Assert(cb.Put(encode(uint16(i)), e.encode()))
 	}
 }
 
 func (t *Ticket) saveMetrics(tb *bbolt.Bucket) {
-	var mb *bbolt.Bucket
-	act.Assure(tb.CreateBucket(bktMetrics)).Scan(&mb)
-	for k, v := range t.Metrics {
-		bput(mb, k, v)
+	tb.DeleteBucket(bktMetrics)
+	if len(t.Metrics) > 0 {
+		var mb *bbolt.Bucket
+		act.Assure(tb.CreateBucket(bktMetrics)).Scan(&mb)
+		for k, v := range t.Metrics {
+			bput(mb, k, v)
+		}
 	}
 }
 
@@ -61,7 +64,7 @@ func (t *Ticket) save(b *bbolt.Bucket) {
 	if len(t.Metrics) > 0 {
 		t.saveMetrics(tb)
 	}
-	bput(tb, "due", t.Due.UnixNano())
+	bput(tb, "due", t.Due)
 	bput(tb, "assignee", t.Assignee)
 	bput(tb, "items", t.Items...)
 }
@@ -76,29 +79,64 @@ func (t *Ticket) Save(db *bbolt.DB) (err error) {
 	return nil
 }
 
-func (t *Ticket) load(b *bbolt.Bucket, id uint64) {
-	var tb *bbolt.Bucket
-	act.Assure(b.Bucket(encode(id))).Scan(&tb)
+func (t *Ticket) loadContents(tb *bbolt.Bucket) {
+	if cb := tb.Bucket(bktContent); cb != nil {
+		cb.ForEach(func(_, v []byte) error {
+			var e Content
+			t.Entries = append(t.Entries, e.decode(v))
+			return nil
+		})
+	} else {
+		t.Entries = []*Content{}
+	}
+}
+
+func (t *Ticket) loadMetrics(tb *bbolt.Bucket) {
+	if mb := tb.Bucket(bktMetrics); mb != nil {
+		mb.ForEach(func(k, v []byte) error {
+			key := act.Assure(decode[string](k))[0].([]string)[0]
+			val := act.Assure(decode[float64](v))[0].([]float64)[0]
+			t.Metrics[key] = val
+			return nil
+		})
+	} else {
+		t.Metrics = map[string]float64{}
+	}
+}
+
+func (t *Ticket) load(b *bbolt.Bucket, id uint64) (err error) {
+	tb := b.Bucket(encode(id))
+	if tb == nil {
+		return os.ErrNotExist
+	}
+	defer act.Catch(&err)
 	t.loadContents(tb)
-	/*
-			id       uint64
-		Entries  []Content
-		Status   int8
-		Tags     []string
-		Metrics  map[string]float64
-		Due      time.Time
-		Assignee int64
-		Items    []uint64
-	*/
+	t.loadMetrics(tb)
+	t.Status = 0
+	if s := bget[int8](tb, "status"); s != nil {
+		t.Status = s[0]
+	}
+	t.Tags = bget[string](tb, "tags")
+	t.Due = 0
+	if d := bget[int64](tb, "due"); len(d) > 0 {
+		t.Due = d[0]
+	}
+	t.Assignee = 0
+	if a := bget[uint64](tb, "assignee"); len(a) > 0 {
+		t.Assignee = a[0]
+	}
+	t.Items = bget[uint64](tb, "items")
 	t.id = id
+	return nil
 }
 
 func (t *Ticket) Load(db *bbolt.DB, id uint64) (err error) {
 	defer act.Catch(&err)
-	act.Assert(db.View(func(tx *bbolt.Tx) error {
-		b := act.Assure(tx.Bucket(bktTickets))[0].(*bbolt.Bucket)
-		t.load(b, id)
-		return nil
-	}))
-	return nil
+	return db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bktTickets)
+		if b == nil {
+			return os.ErrNotExist
+		}
+		return t.load(b, id)
+	})
 }

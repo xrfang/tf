@@ -115,7 +115,7 @@ func decode[T value](buf []byte) (vs []T, err error) {
 	case int8:
 		act.Assert(buf[0] == 0x41, "decode: data is not int8 (expected mark 0x41)")
 		for _, i := range buf[1:] {
-			vs = append(vs, any(i).(T))
+			vs = append(vs, any(int8(i)).(T))
 		}
 	case int16:
 		act.Assert(buf[0] == 0x42, "decode: data is not int16 (expected mark 0x42)")
@@ -156,4 +156,10 @@ func bput[T value](b *bbolt.Bucket, key string, val ...T) {
 	} else {
 		act.Assert(b.Delete([]byte(key)))
 	}
+}
+
+func bget[T value](b *bbolt.Bucket, key string) []T {
+	val, err := decode[T](b.Get([]byte(key)))
+	act.Assert(err)
+	return val
 }

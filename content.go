@@ -5,9 +5,12 @@ import (
 	"encoding/binary"
 	"strings"
 	"time"
+
+	"go.xrfang.cn/act"
 )
 
 type Content struct {
+	id      uint64
 	Caption string
 	Type    string
 	Data    []byte
@@ -35,21 +38,30 @@ func (c Content) encode() []byte {
 	return bb.Bytes()
 }
 
-func (c *Content) decode(b []byte) {
+func (c *Content) decode(b []byte) *Content {
 	r := bytes.NewReader(b)
-	binary.Read(r, binary.BigEndian, &c.Creator)
+	act.Assert(binary.Read(r, binary.BigEndian, &c.Creator))
 	var ts int64
-	binary.Read(r, binary.BigEndian, &ts)
+	act.Assert(binary.Read(r, binary.BigEndian, &ts))
 	c.Created = time.Unix(0, ts)
-	binary.Read(r, binary.BigEndian, &ts)
+	act.Assert(binary.Read(r, binary.BigEndian, &ts))
 	c.Updated = time.Unix(0, ts)
-	n, _ := r.Read(b)
-	bs := bytes.SplitN(b[:n], []byte{0}, 3)
-	c.Caption = string(bs[0])
+	var bs [][]byte
+	buf := make([]byte, len(b))
+	if n, _ := r.Read(buf); n > 0 {
+		bs = bytes.SplitN(buf[:n], []byte{0}, 3)
+	}
+	c.Caption = ""
+	if len(bs) > 0 {
+		c.Caption = string(bs[0])
+	}
+	c.Type = ""
 	if len(bs) > 1 {
 		c.Type = string(bs[1])
 	}
+	c.Data = nil
 	if len(bs) > 2 {
 		c.Data = bs[2]
 	}
+	return c
 }
